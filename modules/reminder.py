@@ -5,7 +5,6 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 from .cloud_config import using_cloud_db
 from .task_manager import get_due_tasks as sqlite_get_due_tasks
-from .pg_task_manager import get_due_tasks as pg_get_due_tasks
 
 
 _scheduler: BackgroundScheduler | None = None
@@ -15,6 +14,8 @@ _due_task_ids: List[int] = []
 def _check_due_tasks() -> None:
     global _due_task_ids
     if using_cloud_db():
+        from .pg_task_manager import get_due_tasks as pg_get_due_tasks
+
         tasks = pg_get_due_tasks(datetime.utcnow())
     else:
         tasks = sqlite_get_due_tasks(datetime.utcnow())
