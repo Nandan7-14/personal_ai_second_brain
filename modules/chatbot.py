@@ -17,6 +17,13 @@ Focus on key definitions, formulas, and steps."""
 def _get_client() -> OpenAI:
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
+        try:
+            import streamlit as st  # type: ignore
+
+            api_key = st.secrets.get("OPENAI_API_KEY")
+        except Exception:
+            api_key = None
+    if not api_key:
         raise RuntimeError(
             "OPENAI_API_KEY is not set. Please export it before running the app."
         )

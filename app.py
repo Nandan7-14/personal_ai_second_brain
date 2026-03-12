@@ -1,12 +1,23 @@
 from datetime import date, datetime, time
 
 import streamlit as st
+from dotenv import load_dotenv
 
 from modules.file_loader import extract_texts_from_uploads
-from modules.rag_pipeline import index_texts, generate_answer, summarize_indexed_notes
+from modules.rag_pipeline import (
+    index_texts,
+    summarize_indexed_notes,
+    generate_answer_with_sources,
+)
 from modules.task_manager import init_db, add_task, list_tasks, complete_task
 from modules.diary_manager import add_diary_entry, list_diary_entries
 from modules.reminder import start_scheduler, get_due_task_ids
+from modules.chat_history import (
+    create_session,
+    list_sessions,
+    load_messages,
+    add_message,
+)
 from utils.helpers import ensure_directories
 
 
@@ -15,6 +26,7 @@ st.set_page_config(page_title="Personal AI Second Brain", layout="wide")
 
 @st.cache_resource
 def _ensure_background_services():
+    load_dotenv()
     ensure_directories()
     init_db()
     start_scheduler()
@@ -116,8 +128,31 @@ def notes_and_chat_section():
     st.markdown("---")
     st.subheader("Step 9: Chat with your notes")
 
-    if "chat_history" not in st.session_state:
-        st.session_state["chat_history"] = []
+    if "chat_session_id" not in st.session_state:
+        st.session_state["chat_session_id"] = create_session()
+        st.session_state["chat_history"] = load_messages(st.session_state["chat_session_id"])
+
+    sessions = list_sessions(limit=50)
+    session_options = {f"{sid} — {title}": sid for sid, title, created_at in sessions}
+
+    col_s1, col_s2 = st.columns([3, 1])
+    with col_s1:
+        selected_label = st.selectbox(
+            "Saved chats",
+            options=list(session_options.keys()),
+            index=0,
+        )
+    with col_s2:
+        if st.button("New chat"):
+            st.session_state["chat_session_id"] = create_session()
+            st.session_state["chat_history"] = []
+            st.session_state.pop("last_retrieval", None)
+
+    selected_session_id = session_options[selected_label]
+    if selected_session_id != st.session_state["chat_session_id"]:
+        st.session_state["chat_session_id"] = selected_session_id
+        st.session_state["chat_history"] = load_messages(selected_session_id)
+        st.session_state.pop("last_retrieval", None)
 
     question = st.text_input("Ask a question from your notes:")
     if st.button("Ask"):
@@ -125,9 +160,16 @@ def notes_and_chat_section():
             st.warning("Please enter a question.")
         else:
             with st.spinner("Thinking with your notes..."):
-                answer = generate_answer(question, st.session_state["chat_history"])
+                payload = generate_answer_with_sources(
+                    question, st.session_state["chat_history"], top_k=5
+                )
+                answer = payload["answer"]
+                st.session_state["last_retrieval"] = payload
+            sid = int(st.session_state["chat_session_id"])
             st.session_state["chat_history"].append({"role": "user", "content": question})
+            add_message(sid, "user", question)
             st.session_state["chat_history"].append({"role": "assistant", "content": answer})
+            add_message(sid, "assistant", answer)
 
     if st.session_state.get("chat_history"):
         st.markdown("### Conversation")
@@ -136,6 +178,15 @@ def notes_and_chat_section():
                 st.markdown(f"**You:** {msg['content']}")
             else:
                 st.markdown(f"**Assistant:** {msg['content']}")
+
+    retrieval = st.session_state.get("last_retrieval")
+    if retrieval and retrieval.get("results"):
+        with st.expander("Show retrieved chunks (RAG proof)"):
+            for rank, (dist, meta) in enumerate(retrieval["results"], start=1):
+                text = meta.get("text", "")
+                source = meta.get("source", "unknown")
+                st.markdown(f"**#{rank}** • source: `{source}` • distance: `{dist:.4f}`")
+                st.write(text)
 
     st.markdown("---")
     st.subheader("Step 13: Summarize your notes")

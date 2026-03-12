@@ -1,4 +1,4 @@
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Any
 
 from . import embeddings
 from .text_chunker import chunk_text
@@ -43,6 +43,30 @@ def generate_answer(question: str, chat_history: List[dict] | None = None) -> st
     if not context.strip():
         return "I couldn't find relevant information in your indexed documents. Please upload and index your notes first."
     return answer_with_context(question, context, chat_history or [])
+
+
+def generate_answer_with_sources(
+    question: str,
+    chat_history: List[dict] | None = None,
+    top_k: int = 5,
+) -> Dict[str, Any]:
+    """
+    Full RAG step with transparency:
+    returns a dict with answer, context, and retrieved chunks (metadata).
+    """
+    context, results = semantic_search(question, top_k=top_k)
+    if not context.strip():
+        return {
+            "answer": "I couldn't find relevant information in your indexed documents. Please upload and index your notes first.",
+            "context": "",
+            "results": [],
+        }
+    answer = answer_with_context(question, context, chat_history or [])
+    return {
+        "answer": answer,
+        "context": context,
+        "results": results,
+    }
 
 
 def summarize_indexed_notes() -> str:

@@ -10,6 +10,14 @@ This project is a **personal AI assistant** that combines:
 
 It is built with **Streamlit**, **SentenceTransformers**, **FAISS**, **SQLite**, and **APScheduler**.
 
+## What MLDL is used? (for viva)
+
+- **Deep Learning model (Embeddings)**: `SentenceTransformer(all-MiniLM-L6-v2)` (Transformer-based model) converts chunks of your notes into **dense vectors (embeddings)**.
+- **ML technique (Semantic search)**: FAISS performs **nearest-neighbor similarity search** over embeddings to retrieve the most relevant chunks.
+- **RAG (Retrieval Augmented Generation)**: Retrieved chunks are sent as **context** to an LLM to generate the final answer.
+
+The **API key is only for the LLM generation part**. The “MLDL work” in this project is primarily the **Transformer embeddings + FAISS semantic retrieval + RAG pipeline**.
+
 ## Project structure
 
 personal_ai_second_brain/ (this folder)
@@ -39,10 +47,32 @@ Create and activate a virtual environment (optional but recommended), then:
 pip install -r requirements.txt
 ```
 
-Set your OpenAI API key (PowerShell example):
+### API key setup (safe)
+
+You should **NOT hardcode** the API key in code.
+
+Choose one:
+
+1) **PowerShell (temporary, current terminal only)**:
 
 ```powershell
 $env:OPENAI_API_KEY = "your_real_key_here"
+```
+
+2) **Local `.env` file (recommended for local)**:
+
+Create a file named `.env` in the project root with:
+
+```text
+OPENAI_API_KEY=your_real_key_here
+```
+
+3) **Streamlit Community Cloud secrets (recommended for deployment)**:
+
+Add to Streamlit secrets:
+
+```toml
+OPENAI_API_KEY = "your_real_key_here"
 ```
 
 ## Run the app
@@ -61,4 +91,17 @@ The app will open in your browser with:
 - Basic reminder highlighting
 - Diary / journal
 - Document summarization
+
+## RAG transparency (useful for viva)
+
+After you ask a question, open:
+
+- **“Show retrieved chunks (RAG proof)”**
+
+This displays the top retrieved note chunks from FAISS that were used as context for the answer.
+
+## Notes / limitations
+
+- If you have not indexed documents, the assistant cannot answer from notes.
+- PDF text extraction quality depends on whether the PDF contains selectable text (scanned PDFs may need OCR).
 
