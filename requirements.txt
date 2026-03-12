@@ -6,3 +6,5 @@ python-docx
 apscheduler
 python-dotenv
 openai
+psycopg2-binary
+pgvector

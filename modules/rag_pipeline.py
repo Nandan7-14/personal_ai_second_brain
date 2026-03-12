@@ -2,7 +2,16 @@ from typing import List, Tuple, Dict, Any
 
 from . import embeddings
 from .text_chunker import chunk_text
-from .vector_store import add_embeddings, search, build_context
+from .cloud_config import using_cloud_db
+from .vector_store import add_embeddings as faiss_add_embeddings
+from .vector_store import search as faiss_search
+from .vector_store import build_context as faiss_build_context
+from .vector_store_pg import (
+    init_vector_store,
+    add_embeddings as pg_add_embeddings,
+    search as pg_search,
+    build_context as pg_build_context,
+)
 from .chatbot import answer_with_context, summarize_document
 
 
@@ -20,7 +29,10 @@ def index_texts(texts: List[str], source: str = "uploaded") -> int:
     if not all_chunks:
         return 0
     embs = embeddings.encode_texts(all_chunks)
-    return add_embeddings(embs, all_chunks, source=source)
+    if using_cloud_db():
+        init_vector_store()
+        return pg_add_embeddings(embs, all_chunks, source=source)
+    return faiss_add_embeddings(embs, all_chunks, source=source)
 
 
 def semantic_search(question: str, top_k: int = 5) -> Tuple[str, List[Tuple[float, Dict]]]:
@@ -30,8 +42,13 @@ def semantic_search(question: str, top_k: int = 5) -> Tuple[str, List[Tuple[floa
     - raw (distance, metadata) results
     """
     q_emb = embeddings.encode_query(question)
-    results = search(q_emb, top_k=top_k)
-    context = build_context(results)
+    if using_cloud_db():
+        init_vector_store()
+        results = pg_search(q_emb, top_k=top_k)
+        context = pg_build_context(results)
+    else:
+        results = faiss_search(q_emb, top_k=top_k)
+        context = faiss_build_context(results)
     return context, results
 
 

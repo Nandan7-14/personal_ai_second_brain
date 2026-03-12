@@ -9,15 +9,27 @@ from modules.rag_pipeline import (
     summarize_indexed_notes,
     generate_answer_with_sources,
 )
-from modules.task_manager import init_db, add_task, list_tasks, complete_task
-from modules.diary_manager import add_diary_entry, list_diary_entries
+from modules.cloud_config import using_cloud_db
+
+if using_cloud_db():
+    from modules.pg_task_manager import init_db, add_task, list_tasks, complete_task  # type: ignore
+    from modules.pg_diary_manager import add_diary_entry, list_diary_entries  # type: ignore
+    from modules.pg_chat_history import (  # type: ignore
+        create_session,
+        list_sessions,
+        load_messages,
+        add_message,
+    )
+else:
+    from modules.task_manager import init_db, add_task, list_tasks, complete_task  # type: ignore
+    from modules.diary_manager import add_diary_entry, list_diary_entries  # type: ignore
+    from modules.chat_history import (  # type: ignore
+        create_session,
+        list_sessions,
+        load_messages,
+        add_message,
+    )
 from modules.reminder import start_scheduler, get_due_task_ids
-from modules.chat_history import (
-    create_session,
-    list_sessions,
-    load_messages,
-    add_message,
-)
 from utils.helpers import ensure_directories
 
 

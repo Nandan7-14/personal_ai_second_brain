@@ -47,6 +47,34 @@ Create and activate a virtual environment (optional but recommended), then:
 pip install -r requirements.txt
 ```
 
+## Option A (Cloud persistent storage) — Supabase/Postgres
+
+Streamlit Community Cloud can restart/redeploy at any time, so **local files are not guaranteed to persist**.
+To keep **tasks/diary/chats + document memory** permanently, use a hosted Postgres (recommended: **Supabase**) and enable **pgvector**.
+
+### 1) Create Supabase project
+- Create a project on Supabase
+- Copy the **Postgres connection string** (DATABASE_URL)
+
+### 2) Enable pgvector extension (run once)
+In Supabase SQL editor:
+
+```sql
+create extension if not exists vector;
+```
+
+### 3) Add secrets in Streamlit Cloud
+In Streamlit Cloud → your app → **Settings → Secrets**:
+
+```toml
+OPENAI_API_KEY = "sk-your-key"
+DATABASE_URL = "postgresql://USER:PASSWORD@HOST:PORT/dbname?sslmode=require"
+```
+
+When `DATABASE_URL` is set, the app automatically switches to:
+- **Postgres for tasks/diary/chats**
+- **pgvector for document chunk embeddings and semantic search**
+
 ### API key setup (safe)
 
 You should **NOT hardcode** the API key in code.
