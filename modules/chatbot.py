@@ -2,6 +2,7 @@ import os
 from typing import List, Dict
 
 from openai import OpenAI
+from openai import RateLimitError, APIError, APITimeoutError
 
 
 SYSTEM_PROMPT_RAG = """You are a helpful personal study assistant.
@@ -45,12 +46,20 @@ def answer_with_context(
     messages.extend(history)
     messages.append({"role": "user", "content": question})
 
-    resp = client.chat.completions.create(
-        model=model,
-        messages=messages,
-        temperature=0.2,
-    )
-    return resp.choices[0].message.content or ""
+    try:
+        resp = client.chat.completions.create(
+            model=model,
+            messages=messages,
+            temperature=0.2,
+        )
+        return resp.choices[0].message.content or ""
+    except RateLimitError:
+        return (
+            "OpenAI rate limit / quota reached for this API key. "
+            "Please wait a bit, or enable billing / increase limits on your OpenAI account."
+        )
+    except (APITimeoutError, APIError):
+        return "The LLM service is temporarily unavailable. Please try again in a minute."
 
 
 def summarize_document(text: str, model: str = "gpt-4o-mini", max_chars: int = 8000) -> str:
@@ -63,10 +72,18 @@ def summarize_document(text: str, model: str = "gpt-4o-mini", max_chars: int = 8
         {"role": "system", "content": SYSTEM_PROMPT_SUMMARY},
         {"role": "user", "content": f"Summarize the following document:\n\n{short_text}"},
     ]
-    resp = client.chat.completions.create(
-        model=model,
-        messages=messages,
-        temperature=0.3,
-    )
-    return resp.choices[0].message.content or ""
+    try:
+        resp = client.chat.completions.create(
+            model=model,
+            messages=messages,
+            temperature=0.3,
+        )
+        return resp.choices[0].message.content or ""
+    except RateLimitError:
+        return (
+            "OpenAI rate limit / quota reached for this API key. "
+            "Please wait a bit, or enable billing / increase limits on your OpenAI account."
+        )
+    except (APITimeoutError, APIError):
+        return "The LLM service is temporarily unavailable. Please try again in a minute."
 
